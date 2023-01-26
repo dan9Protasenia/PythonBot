@@ -1,12 +1,13 @@
 import asyncio
+import random
 
+import requests
 import telebot
 import wikipedia
 from pyowm.utils.config import get_default_config
 from telebot import types
 from mg import get_map_cell
 from pyowm import OWM
-from aiogram import Bot, executor, Dispatcher
 
 bot = telebot.TeleBot('5954450073:AAEHyfoJS41_bctnzqaEZ-x8mzX__xLAhVs')
 wikipedia.set_lang("ru")
@@ -18,7 +19,6 @@ keyboard.row(telebot.types.InlineKeyboardButton('←', callback_data='left'),
             telebot.types.InlineKeyboardButton('↓', callback_data='down'),
             telebot.types.InlineKeyboardButton('→', callback_data='right'))
 maps = {}
-
 def get_map_str(map_cell, player):
     map_str = ""
     for y in range(rows * 2 - 1):
@@ -83,7 +83,9 @@ def start(mess):
     wiki_button = types.KeyboardButton("Википедия")
     game_button = types.KeyboardButton("Игра")
     weather_button = types.KeyboardButton("Погода")
+    sonik_button = types.KeyboardButton("Сонник")
 
+    markup.add(sonik_button)
     markup.add(weather_button)
     markup.add(game_button)
     markup.add(wiki_button)
@@ -91,6 +93,27 @@ def start(mess):
     bot.send_message(mess.chat.id,
                      'Тискай понравившуюся: \n кнопку',
                      reply_markup=markup)
+
+
+
+@bot.message_handler(commands=['dream'])
+def handle_dream(message):
+    bot.send_message(message.chat.id, 'Напиши мне, что тебе снилось, и я постараюсь дать толкование')
+    bot.register_next_step_handler(message, dream_interpretation)
+
+def dream_interpretation(message):
+    dream = message.text
+    url = 'https://www.dreamdictionary.org/dreamdictionary.php' + dream
+    page = requests.get(url)
+    if page.status_code == 200:
+        bot.send_message(message.chat.id, "Вот толкование твоего сна: " + page)
+    else:
+        bot.send_message(message.chat.id, "Извини, я не могу найти толкование для этого сна.")
+    # data = {'dream': dream}
+    # response = requests.post(url, data=data)
+    # interpretation = response.text
+    # bot.send_message(message.chat.id, interpretation)
+
 
 @bot.message_handler(commands=["Wiki"])
 def wiki(m):
@@ -152,6 +175,8 @@ def get_weather(message):
 def output(message):
     if message.text == 'Википедия':
         wiki(message)
+    elif message.text == 'Сонник':
+        handle_dream(message)
     elif message.text == 'Игра':
         play_message(message)
     elif message.text == 'Погода':
@@ -168,3 +193,4 @@ def help(message):
                                       '/weather = погода\n')
 
 bot.polling(none_stop=True, interval=0)
+
